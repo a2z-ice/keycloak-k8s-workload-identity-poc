@@ -1,0 +1,81 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: pod-a
+  namespace: poc
+  labels:
+    app: pod-a
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: pod-a
+  template:
+    metadata:
+      labels:
+        app: pod-a
+    spec:
+      serviceAccountName: pod-a
+      containers:
+        - name: app
+          image: pod-a:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8081
+              name: http
+          env:
+            - name: KUBERNETES_NAMESPACE
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.namespace
+            - name: KUBERNETES_POD_NAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: HOSTNAME
+              valueFrom:
+                fieldRef:
+                  fieldPath: metadata.name
+            - name: KEYCLOAK_SERVER_URL
+              value: "http://poc-keycloak.poc-keycloak.svc.cluster.local:8080"
+            - name: KEYCLOAK_REALM
+              value: "poc-realm"
+            - name: KEYCLOAK_CLIENT_ID
+              value: "pod-a"
+            - name: KEYCLOAK_CLIENT_SECRET
+              value: "pod-a-secret"
+            - name: KEYCLOAK_AUDIENCE
+              value: "pod-b"
+            - name: POD_B_URL
+              value: "http://pod-b.poc.svc.cluster.local:8082"
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 8081
+            initialDelaySeconds: 30
+            periodSeconds: 15
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 8081
+            initialDelaySeconds: 10
+            periodSeconds: 5
+          resources:
+            requests:
+              memory: "256Mi"
+              cpu: "100m"
+            limits:
+              memory: "512Mi"
+              cpu: "500m"
+          volumeMounts:
+            - name: oidc-token
+              mountPath: /var/run/secrets/tokens
+              readOnly: true
+      volumes:
+        - name: oidc-token
+          projected:
+            sources:
+              - serviceAccountToken:
+                  audience: keycloak-poc
+                  expirationSeconds: 3600
+                  path: jwt.token

@@ -1,0 +1,75 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: poc-keycloak
+  namespace: poc-keycloak
+  labels:
+    app: poc-keycloak
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: poc-keycloak
+  template:
+    metadata:
+      labels:
+        app: poc-keycloak
+    spec:
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.5.3
+          imagePullPolicy: IfNotPresent
+          args: ["start-dev"]
+          env:
+            - name: KEYCLOAK_ADMIN
+              value: "admin"
+            - name: KEYCLOAK_ADMIN_PASSWORD
+              value: "admin"
+            - name: KC_FEATURES
+              value: "token-exchange:v1,admin-fine-grained-authz:v1"
+            # Keycloak 26 ships two token-exchange providers (v1 legacy + v2
+            # standard). The default is v2 which does NOT support external
+            # IdP brokering / subject_issuer. Force v1 explicitly.
+            - name: KC_SPI_TOKEN_EXCHANGE_DEFAULT_PROVIDER
+              value: "legacy"
+            - name: KC_HTTP_ENABLED
+              value: "true"
+            - name: KC_HOSTNAME_STRICT
+              value: "false"
+            - name: KC_HOSTNAME_STRICT_HTTPS
+              value: "false"
+            - name: KC_HEALTH_ENABLED
+              value: "true"
+            - name: KC_PROXY_HEADERS
+              value: "xforwarded"
+            # Trust the in-cluster Kubernetes API CA so the OIDC IdP can fetch
+            # JWKS from https://kubernetes.default.svc.cluster.local
+            - name: KC_TRUSTSTORE_PATHS
+              value: "/var/run/secrets/kubernetes.io/serviceaccount/ca.crt"
+          ports:
+            - name: http
+              containerPort: 8080
+            - name: management
+              containerPort: 9000
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 9000
+            initialDelaySeconds: 20
+            periodSeconds: 5
+            failureThreshold: 30
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 9000
+            initialDelaySeconds: 60
+            periodSeconds: 15
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"

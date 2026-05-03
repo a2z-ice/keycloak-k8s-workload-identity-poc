@@ -1,0 +1,38 @@
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE / editor
+.idea/
+.vscode/
+*.iml
+*.swp
+
+# Java / Maven
+target/
+*.class
+*.log
+
+# Node / Playwright
+node_modules/
+package-lock.json
+playwright-report/
+test-results/
+*.last-run.json
+
+# Local env (do not commit machine-specific values)
+.env
+.env.local
+.env.*.local
+
+# Build / coverage artefacts
+*.jar
+*.war
+coverage/
+
+# Editor files / patches
+*.patch
+*.orig
+
+# Direnv etc.
+.envrc

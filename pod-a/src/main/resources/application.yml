@@ -1,0 +1,53 @@
+spring:
+  application:
+    name: pod-a
+
+server:
+  port: 8081
+
+keycloak:
+  server-url: ${KEYCLOAK_SERVER_URL:http://poc-keycloak.poc-keycloak.svc.cluster.local:8080}
+  realm: ${KEYCLOAK_REALM:poc-realm}
+  token-exchange-endpoint: ${keycloak.server-url}/realms/${keycloak.realm}/protocol/openid-connect/token
+  client-id: ${KEYCLOAK_CLIENT_ID:pod-a}
+  client-secret: ${KEYCLOAK_CLIENT_SECRET:pod-a-secret}
+  audience: ${KEYCLOAK_AUDIENCE:pod-b}
+
+oidc:
+  token:
+    path: ${OIDC_TOKEN_PATH:/var/run/secrets/tokens/jwt.token}
+
+kubernetes:
+  namespace: ${KUBERNETES_NAMESPACE:default}
+  pod:
+    name: ${KUBERNETES_POD_NAME:${HOSTNAME:pod-a}}
+
+pod-b:
+  url: ${POD_B_URL:http://pod-b.poc.svc.cluster.local:8082}
+
+token:
+  refresh:
+    interval-ms: 240000
+    initial-delay-ms: 60000
+
+resilience4j:
+  circuitbreaker:
+    instances:
+      keycloak:
+        slidingWindowSize: 10
+        failureRateThreshold: 50
+        waitDurationInOpenState: 10s
+        permittedNumberOfCallsInHalfOpenState: 3
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics,prometheus
+  endpoint:
+    health:
+      show-details: always
+
+logging:
+  level:
+    com.example.poda: DEBUG

@@ -1,0 +1,65 @@
+# =============================================================================
+# Kind cluster configuration for the Token-Exchange POC
+# =============================================================================
+#
+# This is the *only* infrastructure file the POC owns at the cluster level.
+# The cluster is named "poc-cluster" so it cannot collide with the parent
+# repo's existing "kind"/"aauth" cluster used by the Student-Mgmt app.
+#
+# CREATE the cluster:
+#     kind create cluster --name poc-cluster --config kubernetes/poc-cluster-config.yaml
+#
+# DELETE the cluster:
+#     kind delete cluster --name poc-cluster
+#
+# The cluster is intentionally tiny — a single control-plane node is all the
+# POC ever needs (1 Keycloak pod + pod-a + pod-b).  No worker nodes.
+#
+# extraPortMappings publishes the three NodePort services directly to the host
+# at 127.0.0.1:30810 / :30820 / :30888.  This replaces the previous socat
+# Docker-proxy workaround — when the POC owns its kind cluster, mapping ports
+# at create-time is the canonical, simplest approach.  No other host changes
+# (no /etc/hosts edits, no proxy containers).
+#
+# After you `kind create` the cluster, kubectl context will be set to
+# "kind-poc-cluster" automatically.  Verify with:
+#     kubectl config current-context     # → kind-poc-cluster
+#     kubectl cluster-info
+#
+# =============================================================================
+
+kind: Cluster
+apiVersion: kind.x-k8s.io/v1alpha4
+name: poc-cluster
+
+nodes:
+  - role: control-plane
+    # ---------------------------------------------------------------------
+    # NodePort exposure — the POC's three services published on the host.
+    # Keep these in sync with:
+    #   k8s-manifests/poc-keycloak/03-service.yaml      → nodePort 30888
+    #   k8s-manifests/poc/04-pod-a-service.yaml          → nodePort 30810
+    #   k8s-manifests/poc/06-pod-b-service.yaml          → nodePort 30820
+    # ---------------------------------------------------------------------
+    extraPortMappings:
+      # POC Keycloak (admin UI + token endpoints)
+      #   Browser : http://127.0.0.1:30888  (admin console)
+      #   App     : http://poc-keycloak.poc-keycloak.svc.cluster.local:8080
+      - containerPort: 30888
+        hostPort: 30888
+        protocol: TCP
+        listenAddress: "127.0.0.1"
+
+      # pod-a  (Token Exchanger / Spring Boot)
+      #   Browser : http://127.0.0.1:30810/api/health
+      - containerPort: 30810
+        hostPort: 30810
+        protocol: TCP
+        listenAddress: "127.0.0.1"
+
+      # pod-b  (Resource Server / Spring Boot)
+      #   Browser : http://127.0.0.1:30820/api/health
+      - containerPort: 30820
+        hostPort: 30820
+        protocol: TCP
+        listenAddress: "127.0.0.1"
